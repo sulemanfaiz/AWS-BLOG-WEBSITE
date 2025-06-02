@@ -41,7 +41,7 @@ const BlogDetail = () => {
     <div className="blog-detail-container">
       <h1>{blog.title}</h1>
       <p>{blog.content}</p>
-      <p>Hello</>
+  
     </div>
   );
 };
