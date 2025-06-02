@@ -1,27 +1,38 @@
 version: 0.2
 
 phases:
+  install:
+    runtime-versions:
+      docker: 20
+    commands:
+      - echo "Installing docker-compose..."
+      - curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+      - chmod +x /usr/local/bin/docker-compose
+      - ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+      - docker-compose --version
+
   pre_build:
     commands:
-      - echo Logging in to Amazon ECR...
+      - echo "Logging in to ECR..."
       - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 690050948477.dkr.ecr.us-east-1.amazonaws.com
-      - export FRONTEND_IMAGE=690050948477.dkr.ecr.us-east-1.amazonaws.com/blog-website-frontend:$CODEBUILD_BUILD_NUMBER
-      - export BACKEND_IMAGE=690050948477.dkr.ecr.us-east-1.amazonaws.com/blog-website-backend:$CODEBUILD_BUILD_NUMBER
+      - export FRONTEND_IMAGE=690050948477.dkr.ecr.us-east-1.amazonaws.com/blog-website-frontend:$(date +%Y%m%d%H%M%S)
+      - export BACKEND_IMAGE=690050948477.dkr.ecr.us-east-1.amazonaws.com/blog-website-backend:$(date +%Y%m%d%H%M%S)
 
   build:
     commands:
-      - echo Building Docker images...
-      - docker-compose build
-      - docker tag blogging-website_frontend $FRONTEND_IMAGE
-      - docker tag blogging-website_backend $BACKEND_IMAGE
+      - echo "Building containers..."
+      - docker-compose -f docker-compose.yml build --no-cache
+      - docker tag blogging-website_frontend:latest $FRONTEND_IMAGE
+      - docker tag blogging-website_backend:latest $BACKEND_IMAGE
+      - docker images
 
   post_build:
     commands:
-      - echo Pushing images to Amazon ECR...
+      - echo "Pushing images..."
       - docker push $FRONTEND_IMAGE
       - docker push $BACKEND_IMAGE
-      - echo Creating imagedefinitions.json for ECS...
-      - printf '[{"name":"frontend","imageUri":"%s"},{"name":"backend","imageUri":"%s"}]' $FRONTEND_IMAGE $BACKEND_IMAGE > imagedefinitions.json
+      - echo "Creating deployment config..."
+      - echo '[{"name":"frontend","imageUri":"'"$FRONTEND_IMAGE"'"},{"name":"backend","imageUri":"'"$BACKEND_IMAGE"'"}]' > imagedefinitions.json
 
 artifacts:
   files:
